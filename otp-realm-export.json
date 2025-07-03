@@ -1,0 +1,49 @@
+{
+  "realm": "otp-realm",
+  "enabled": true,
+  "users": [
+    {
+      "username": "touijer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "email": "admin@example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "2Wac1937",
+          "temporary": false
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "otp-registration-client",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "your-client-secret",
+      "redirectUris": [
+        "http://localhost:8081/*"
+      ],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "bearerOnly": false
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "user",
+        "description": "Utilisateur standard"
+      },
+      {
+        "name": "admin",
+        "description": "Administrateur"
+      }
+    ]
+  }
+} 

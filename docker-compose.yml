@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: keycloak-otp-postgres
+    environment:
+      POSTGRES_DB: keycloak_otp_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: oussama
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - keycloak-otp-network
+
+  # Keycloak
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0.5
+    container_name: keycloak-server
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_otp_db
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: oussama
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8080
+      KC_IMPORT: /opt/keycloak/data/import/otp-realm-export.json
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    command: start-dev
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./otp-realm-export.json:/opt/keycloak/data/import/otp-realm-export.json
+    networks:
+      - keycloak-otp-network
+
+volumes:
+  postgres_data:
+  keycloak_data:
+
+networks:
+  keycloak-otp-network:
+    driver: bridge
