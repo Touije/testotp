@@ -35,6 +35,12 @@ public class OtpCode {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
+    @Column
+    private LocalDateTime whatsappSentAt;
+
+    @Column
+    private LocalDateTime smsReminderSentAt;
+
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiresAt);
     }

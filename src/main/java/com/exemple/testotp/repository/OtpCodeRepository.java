@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -19,4 +20,7 @@ public interface OtpCodeRepository extends JpaRepository<OtpCode, Long> {
     void deleteByPhoneNumberAndUsed(String phoneNumber, boolean used);
 
     void deleteByExpiresAtBefore(LocalDateTime dateTime);
+
+    @Query("SELECT o FROM OtpCode o WHERE o.used = false AND o.expiresAt > :now AND o.whatsappSentAt IS NOT NULL AND o.whatsappSentAt <= :reminderTime AND o.smsReminderSentAt IS NULL")
+    List<OtpCode> findOtpForWhatsappReminder(@Param("now") LocalDateTime now, @Param("reminderTime") LocalDateTime reminderTime);
 }

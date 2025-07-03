@@ -27,4 +27,13 @@ public class CleanupScheduler {
             log.error("Erreur lors du nettoyage des données expirées", e);
         }
     }
+
+    @Scheduled(fixedRate = 60000) // Chaque minute
+    public void sendWhatsappReminders() {
+        try {
+            otpService.sendWhatsappReminderIfNotVerified();
+        } catch (Exception e) {
+            log.error("Erreur lors de l'envoi des rappels WhatsApp/SMS", e);
+        }
+    }
 }

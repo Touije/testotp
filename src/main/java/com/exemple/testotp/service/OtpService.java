@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -34,6 +35,15 @@ public class OtpService {
     @Value("${otp.length}")
     private int otpLength;
 
+    @Value("${twilio.whatsapp.sandbox.number}")
+    private String twilioWhatsappNumber;
+
+    @Value("${twilio.whatsapp.sandbox.enabled:true}")
+    private boolean whatsappSandboxEnabled;
+
+    @Value("${otp.sms.reminder.delay.minutes:5}")
+    private int smsReminderDelayMinutes;
+
     @Transactional
     public void generateAndSendOtp(String phoneNumber) {
         // Supprimer les anciens codes OTP non utilisés
@@ -48,14 +58,15 @@ public class OtpService {
         otp.setCode(otpCode);
         otp.setExpiresAt(LocalDateTime.now().plusMinutes(otpExpirationMinutes));
         otp.setUsed(false);
+        otp.setWhatsappSentAt(LocalDateTime.now());
 
         // Sauvegarder en base
         otpCodeRepository.save(otp);
 
-        // Envoyer le SMS
-        sendSms(phoneNumber, otpCode);
+        // Envoyer le code via WhatsApp
+        sendWhatsapp(phoneNumber, otpCode);
 
-        log.info("OTP généré et envoyé pour le numéro: {}", phoneNumber);
+        log.info("OTP généré et envoyé par WhatsApp pour le numéro: {}", phoneNumber);
     }
 
     @Transactional
@@ -92,21 +103,21 @@ public class OtpService {
         return otp.toString();
     }
 
-    private void sendSms(String phoneNumber, String otpCode) {
+    private void sendWhatsapp(String phoneNumber, String otpCode) {
         try {
             String messageBody = String.format("Votre code de vérification est: %s. Il expire dans %d minutes.",
                     otpCode, otpExpirationMinutes);
-
+            String to = "whatsapp:" + phoneNumber;
+            String from = "whatsapp:" + twilioWhatsappNumber;
             Message message = Message.creator(
-                    new PhoneNumber(phoneNumber),
-                    new PhoneNumber(twilioPhoneNumber),
+                    new PhoneNumber(to),
+                    new PhoneNumber(from),
                     messageBody
             ).create();
-
-            log.info("SMS envoyé avec succès. SID: {}", message.getSid());
+            log.info("WhatsApp envoyé avec succès. SID: {}", message.getSid());
         } catch (Exception e) {
-            log.error("Erreur lors de l'envoi du SMS: {}", e.getMessage(), e);
-            throw new SmsException("Impossible d'envoyer le SMS", e);
+            log.error("Erreur lors de l'envoi du WhatsApp: {}", e.getMessage(), e);
+            throw new SmsException("Impossible d'envoyer le message WhatsApp", e);
         }
     }
 
@@ -114,5 +125,37 @@ public class OtpService {
     public void cleanupExpiredOtps() {
         otpCodeRepository.deleteByExpiresAtBefore(LocalDateTime.now());
         log.info("Nettoyage des codes OTP expirés terminé");
+    }
+
+    public void sendReminderSms(String phoneNumber, String otpCode) {
+        try {
+            String messageBody = "Vérifiez WhatsApp, le code de vérification a déjà été envoyé. Code: " + otpCode;
+            Message message = Message.creator(
+                    new PhoneNumber(phoneNumber),
+                    new PhoneNumber(twilioPhoneNumber),
+                    messageBody
+            ).create();
+            log.info("SMS de rappel envoyé avec succès. SID: {}", message.getSid());
+        } catch (Exception e) {
+            log.error("Erreur lors de l'envoi du SMS de rappel: {}", e.getMessage(), e);
+            throw new SmsException("Impossible d'envoyer le SMS de rappel", e);
+        }
+    }
+
+    @Transactional
+    public void sendWhatsappReminderIfNotVerified() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime reminderTime = now.minusMinutes(smsReminderDelayMinutes);
+        log.info("[DIAG] Début de la vérification des OTP WhatsApp à relancer (heure: {}, délai: {} min)", now, smsReminderDelayMinutes);
+        List<OtpCode> otps = otpCodeRepository.findOtpForWhatsappReminder(now, reminderTime);
+        log.info("[DIAG] Nombre d'OTP candidats à la relance SMS: {}", otps.size());
+        for (OtpCode otp : otps) {
+            log.info("[DIAG] OTP à relancer: id={}, phone={}, code={}, whatsappSentAt={}, smsReminderSentAt={}, used={}, expiresAt={}",
+                otp.getId(), otp.getPhoneNumber(), otp.getCode(), otp.getWhatsappSentAt(), otp.getSmsReminderSentAt(), otp.isUsed(), otp.getExpiresAt());
+            sendReminderSms(otp.getPhoneNumber(), otp.getCode());
+            otp.setSmsReminderSentAt(LocalDateTime.now());
+            otpCodeRepository.save(otp);
+            log.info("SMS de rappel envoyé pour le numéro: {} (OTP: {})", otp.getPhoneNumber(), otp.getCode());
+        }
     }
 }
