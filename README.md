@@ -15,6 +15,27 @@ TestOTP est une application backend Java/Spring Boot permettant l'inscription d'
 - API REST documentée (OpenAPI/Swagger)
 - Sécurité stateless (Spring Security)
 
+## Envoi du code de vérification OTP via Twilio
+
+Lors de l'inscription, l'application génère un code OTP (One-Time Password) unique pour l'utilisateur. Ce code est envoyé en priorité via WhatsApp en utilisant l'API Twilio Sandbox.  
+Si l'utilisateur ne vérifie pas ce code dans un délai configurable (par défaut 5 minutes), une relance automatique est effectuée : le même code OTP est alors envoyé par SMS, toujours via Twilio, pour maximiser les chances que l'utilisateur reçoive et valide son code.
+
+**Détails techniques :**
+- L'envoi WhatsApp et SMS utilise l'API Twilio (Twilio REST API).
+- Le numéro WhatsApp utilisé est celui du Sandbox Twilio : `+14155238886`.
+- Le numéro SMS utilisé est celui configuré dans Twilio.
+- Le code OTP n'est jamais régénéré entre WhatsApp et SMS : l'utilisateur reçoit le même code sur les deux canaux.
+- L'envoi du SMS de rappel est entièrement automatisé grâce à une tâche planifiée (scheduler) dans l'application.
+
+**Flux résumé :**
+1. L'utilisateur s'inscrit → reçoit un OTP sur WhatsApp via Twilio.
+2. Si non vérifié après X minutes → reçoit un SMS de rappel avec le même OTP via Twilio.
+3. L'utilisateur peut valider le code reçu sur WhatsApp ou par SMS.
+
+> **Envoi du code OTP via Twilio**
+>
+> Lors de l'inscription, un code de vérification (OTP) est généré et envoyé à l'utilisateur via WhatsApp grâce à l'API Twilio. Si l'utilisateur ne valide pas ce code dans un délai de X minutes, le même code lui est automatiquement renvoyé par SMS, toujours via Twilio. Cette double notification maximise la délivrabilité et la sécurité du processus d'inscription.
+
 ---
 
 ## Architecture technique
